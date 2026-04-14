@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="mr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Final Expense Manager</title>
+
+<style>
+body{
+    margin:0;
+    font-family: Arial;
+    background: linear-gradient(135deg,#0f2027,#2c5364);
+    color:white;
+}
+
+/* GLASS CARD */
+.card{
+    background: rgba(255,255,255,0.1);
+    backdrop-filter: blur(15px);
+    margin:15px;
+    padding:15px;
+    border-radius:15px;
+    box-shadow:0 8px 25px rgba(0,0,0,0.4);
+    transition:0.4s;
+    animation:fade 0.6s ease;
+}
+
+.card:hover{
+    transform:scale(1.03);
+}
+
+/* INPUT */
+input{
+    width:95%;
+    padding:8px;
+    margin:5px 0;
+    border:none;
+    border-radius:8px;
+}
+
+/* BUTTON */
+button{
+    padding:6px 10px;
+    margin:3px;
+    font-size:12px;
+    border:none;
+    border-radius:6px;
+    background:#00e676;
+    color:black;
+    cursor:pointer;
+    transition:0.3s;
+}
+
+button:hover{
+    transform:scale(1.1);
+    background:#69f0ae;
+}
+
+.delete{
+    background:red;
+    color:white;
+    float:right;
+    font-size:11px;
+    padding:3px 6px;
+}
+
+.active{
+    background:orange !important;
+}
+
+/* LIST */
+ul{list-style:none; padding:0;}
+
+li{
+    background:rgba(255,255,255,0.2);
+    margin:5px 0;
+    padding:8px;
+    border-radius:6px;
+    animation:slide 0.4s ease;
+}
+
+.date-title{
+    font-weight:bold;
+    color:#ffd54f;
+    margin-top:10px;
+}
+
+/* ANIMATION */
+@keyframes fade{
+    from{opacity:0; transform:translateY(20px);}
+    to{opacity:1; transform:translateY(0);}
+}
+
+@keyframes slide{
+    from{opacity:0; transform:translateX(-20px);}
+    to{opacity:1; transform:translateX(0);}
+}
+</style>
+</head>
+
+<body>
+
+<h1 style="text-align:center;">💰 Final Expense Manager</h1>
+
+<!-- ADD -->
+<div class="card">
+<h3>➕ खर्च नोंद</h3>
+<input type="text" id="desc" placeholder="वर्णन">
+<input type="number" id="amount" placeholder="रक्कम ₹">
+<input type="date" id="date">
+<button onclick="addExpense()">खर्च जोडा</button>
+</div>
+
+<!-- DATE SEARCH -->
+<div class="card">
+<h3>📅 तारीख शोध</h3>
+<input type="date" id="searchDate">
+<button onclick="searchDate()">Search</button>
+<button onclick="showAll()">All</button>
+</div>
+
+<!-- MONTH -->
+<div class="card">
+<h3>📆 महिना निवडा</h3>
+<button onclick="selectMonth(0,this)">Jan</button>
+<button onclick="selectMonth(1,this)">Feb</button>
+<button onclick="selectMonth(2,this)">Mar</button>
+<button onclick="selectMonth(3,this)">Apr</button>
+<button onclick="selectMonth(4,this)">May</button>
+<button onclick="selectMonth(5,this)">Jun</button>
+<button onclick="selectMonth(6,this)">Jul</button>
+<button onclick="selectMonth(7,this)">Aug</button>
+<button onclick="selectMonth(8,this)">Sep</button>
+<button onclick="selectMonth(9,this)">Oct</button>
+<button onclick="selectMonth(10,this)">Nov</button>
+<button onclick="selectMonth(11,this)">Dec</button>
+
+<p>Month Total: ₹<span id="monthTotal">0</span></p>
+</div>
+
+<!-- YEAR -->
+<div class="card">
+<h3>📅 This Year</h3>
+<button onclick="showYearData()">This Year</button>
+<p>Year Total: ₹<span id="yearTotal">0</span></p>
+</div>
+
+<!-- HISTORY -->
+<div class="card">
+<h3>📜 इतिहास</h3>
+<ul id="history"></ul>
+</div>
+
+<script>
+let expenses = JSON.parse(localStorage.getItem("finalExp")) || [];
+let selectedMonth=null;
+
+// ADD
+function addExpense(){
+    let desc=document.getElementById("desc").value;
+    let amount=parseFloat(document.getElementById("amount").value);
+    let date=document.getElementById("date").value;
+
+    if(!desc||!amount||!date) return;
+
+    expenses.push({desc,amount,date});
+    localStorage.setItem("finalExp",JSON.stringify(expenses));
+
+    showGrouped(expenses);
+    calculateYear();
+
+    if(selectedMonth!==null){
+        filterMonth(selectedMonth);
+    }
+}
+
+// DELETE
+function deleteExpense(i){
+    expenses.splice(i,1);
+    localStorage.setItem("finalExp",JSON.stringify(expenses));
+    showGrouped(expenses);
+    calculateYear();
+}
+
+// DATE SEARCH
+function searchDate(){
+    let date=document.getElementById("searchDate").value;
+    let filtered=expenses.filter(e=>e.date===date);
+    showGrouped(filtered);
+}
+
+// SHOW ALL
+function showAll(){
+    showGrouped(expenses);
+}
+
+// MONTH
+function selectMonth(m,btn){
+    selectedMonth=m;
+    document.querySelectorAll("button").forEach(b=>b.classList.remove("active"));
+    btn.classList.add("active");
+    filterMonth(m);
+}
+
+function filterMonth(m){
+    let total=0;
+
+    let filtered=expenses.filter(e=>{
+        let d=new Date(e.date);
+        return d.getMonth()===m;
+    });
+
+    filtered.forEach(e=>total+=e.amount);
+    document.getElementById("monthTotal").innerText=total;
+
+    showGrouped(filtered);
+}
+
+// YEAR DATA (TOTAL + HISTORY)
+function showYearData(){
+    let total=0;
+    let year=new Date().getFullYear();
+
+    let filtered=expenses.filter(e=>{
+        let d=new Date(e.date);
+        if(d.getFullYear()===year){
+            total+=e.amount;
+            return true;
+        }
+    });
+
+    document.getElementById("yearTotal").innerText=total;
+    showGrouped(filtered);
+}
+
+// GROUP HISTORY WITH DELETE
+function showGrouped(data){
+    let list=document.getElementById("history");
+    list.innerHTML="";
+
+    let grouped={};
+
+    data.forEach((e,i)=>{
+        if(!grouped[e.date]) grouped[e.date]=[];
+        grouped[e.date].push({...e,index:i});
+    });
+
+    for(let d in grouped){
+        list.innerHTML+=`<div class="date-title">📅 ${d}</div>`;
+        grouped[d].forEach(e=>{
+            list.innerHTML+=`
+            <li>
+            ${e.desc} - ₹${e.amount}
+            <button class="delete" onclick="deleteExpense(${e.index})">❌</button>
+            </li>`;
+        });
+    }
+
+    if(data.length===0){
+        list.innerHTML="<li>डेटा नाही</li>";
+    }
+}
+
+// LOAD
+showGrouped(expenses);
+calculateYear();
+
+function calculateYear(){
+    let total=0;
+    let year=new Date().getFullYear();
+
+    expenses.forEach(e=>{
+        let d=new Date(e.date);
+        if(d.getFullYear()===year) total+=e.amount;
+    });
+
+    document.getElementById("yearTotal").innerText=total;
+}
+</script>
+
+</body>
+</html>
